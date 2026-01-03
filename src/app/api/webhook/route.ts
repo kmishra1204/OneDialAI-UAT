@@ -236,7 +236,10 @@ export async function POST(req: NextRequest) {
     } else if (eventType === "message.new") {
       const event = payload as MessageNewEvent;
 
-      const messageId = (event as any).message?.id as string | undefined;
+      const messageId =
+  "message" in event && event.message && typeof event.message === "object"
+    ? (event.message as { id?: string }).id
+    : undefined;
       const userId = event.user?.id;
       const channelId = event.channel_id;
       const text = event.message?.text;
@@ -349,9 +352,11 @@ Rules:
     }
 
     return NextResponse.json({ status: "ok" });
-  } catch (err: any) {
-    // Avoid dumping full payloads or secrets
-    console.error("Webhook handler error:", err?.message || err);
-    return NextResponse.json({ error: "Internal error" }, { status: 500 });
-  }
+ } catch (err: unknown) {
+  // Avoid dumping full payloads or secrets
+  const message =
+    err instanceof Error ? err.message : String(err);
+  console.error("Webhook handler error:", message);
+  return NextResponse.json({ error: "Internal error" }, { status: 500 });
+}
 }
